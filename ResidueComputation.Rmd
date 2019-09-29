@@ -24,6 +24,15 @@ F:=y^2-x*(x-p)*(x-q);
 E:=Surface(A3,F);
 ```
 
+We also must compute the equations for $E$ on the affine patch about infinity.
+
+```{magma}
+p_inf:=3*(1-t)^3*(1+3*t);
+q_inf:=3*(-1-t)^3*(-1+3*t);
+F_inf:=y^2*t^8-x*(x*t^4-p_inf)*(x*t^4-q_inf);
+E_inf:=Surface(A3, F_inf);
+```
+
 We check the discriminant of the elliptic curve. We need to do some hacky algebra to extract the polynomial we're interested in.
 
 ```{magma}
@@ -34,11 +43,18 @@ Singular subscheme, and some of the points in the support
 
 ```{magma}
 Support(SingularSubscheme(E));
+Support(SingularSubscheme(E_inf));
 ```
 
 ```{magma}
 Etilde:=DesingulariseSurfaceByBlowUp(E);
+Etilde_inf:=DesingulariseSurfaceByBlowUp(E_inf);
 ```
+
+### Residue formula
+
+
+Given a complete local DVR $R$ with uniformizer $\pi$ and residue field $k$, we compute the residue of a quaternion algebra $(f,g)$ as the class of $(-1)^{v(f)v(g)}\widetilde{f}^{v(g)}\widetilde{g}^{v(f)}$ in $k^*/k^{*2}$ where for any $h\in R$ we define $\widetilde{h}=h\pi^{-v(h)}$.
 
 ```{magma}
 function GetInitialTerm(f)
@@ -63,7 +79,7 @@ end function;
 ### Computing residue at (-9, 0, 0) 
 
 
-We unpack some of the desingularization data here. We pick one exceptional component L on a patch Y of the desingularization $\tilde{X}$ of X, together with the morphism $\pi: Y \to X$.
+We unpack some of the desingularization data here. We pick one exceptional component L on a patch Y of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[1],1);
@@ -143,7 +159,7 @@ Factorization(Integers() ! Coefficients(Numerator(res))[1]);
 ### Computing residue at (0, 0, -3) 
 
 
-We now pick the exceptional component L on the patch Y over $(0, -3, 0)$ of the desingularization $\tilde{E}$ of E, together with the morphism $\pi: Y \to X$.
+We now pick the exceptional component L on the patch Y over $(0, 0, -3)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[2],1);
@@ -227,16 +243,43 @@ res;
 Here the residue is immediately seen to be a square.
 
 
-## Computing residues at (0, 0, -1) 
+### Computing residues at (0, 0, -1) 
 
 
-### Patch 1
+#### Patch 1
 
 
-Here we pick the component L on the first affine patch Y over $(0,-3,0)$ of the desingularization $\tilde{X}$ of X, together with the morphism $\pi: Y \to X$.
+Here we pick the component L on the first affine patch Y over $(0,0,-1)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[3],1);
+```
+
+```{magma}
+Xuv:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wuv]);
+Yuv:=Evaluate(DefiningPolynomials(pi)[2], [Xu, Vu, Wuv]);
+Tuv:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wuv]);
+Puv:=Evaluate(p, [0,0,Tuv]);
+Quv:=Evaluate(p, [0,0,-Tuv]);
+
+Tpoly1:=Evaluate(6*t*(t+1), [0,0,Tuv]);
+Tpoly2:=Evaluate(6*t*(t-1), [0,0,Tuv]);
+```
+
+```{magma}
+vf1:=Valuation(Xuv-Pu);
+vf2:=Valuation(Xuv-Qu);
+vg1:=Valuation(Tpoly1);
+vg2:=Valuation(Tpoly2);
+f1:=Coefficients(Xuv-Pu)[1];
+f2:=Coefficients(Xuv-Qu)[1];
+g1:=Coefficients(Tpoly1)[1];
+g2:=Coefficients(Tpoly2)[1];
+
+res1:=f1^(vg1)*g1^(vf1)*(-1)^(vf1*vg1);
+res2:=f2^(vg2)*g2^(vf2)*(-1)^(vf2*vg2);
+res:=res1*res2;
+res;
 ```
 
 Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
@@ -312,10 +355,10 @@ Factorization(Integers() ! res);
 Thus again we see that the residue is trivial.
 
 
-### Patch 2
+#### Patch 2
 
 
-Here we pick the component L on the second affine patch Y over $(0,-3,0)$ of the desingularization $\tilde{X}$ of X, together with the morphism $\pi: Y \to X$.
+Here we pick the component L on the second affine patch Y over $(0,0,-1)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[3],2);
@@ -397,16 +440,14 @@ Factorization(Integers() ! res);
 Once again, the residue is trivial.
 
 
-### Patch 3
+#### Patch 3
 
 
-Here we pick the component L on the third affine patch Y over $(0,-3,0)$ of the desingularization $\tilde{X}$ of X, together with the morphism $\pi: Y \to X$.
+Here we pick the component L on the third affine patch Y over $(0,0,-1)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[3],3);
 ```
-
-Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
 
 ```{magma}
 A3<T,V,W>:=Ambient(Y);
@@ -415,6 +456,9 @@ pi;
 ```
 
 We write down a parametrization of our conic $L$. For the parametrization below we took the projective closure and projected away from the rational point $[0,0,1]$.
+
+
+Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
 
 ```{magma}
 kU<U>:=FunctionField(Rationals(), 1);
@@ -481,8 +525,350 @@ Factorization(Denominator(res));
 Factorization(Integers() ! Coefficients(Numerator(res))[1]);
 ```
 
+Once again, the residue is trivial.
+
+
+### Computing residues at (0, 0, 1) 
+
+
+#### Patch 1
+
+
+Here we pick the component L on the first affine patch Y over $(0,1,0)$ of the desingularization $\tilde{E}$ of E, together with the morphism $\pi: Y \to E$.
+
+```{magma}
+L,Y,pi:=BlowUpDivisor(E,Etilde[4],1);
+```
+
+Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
+
+```{magma}
+A3<X,V,W>:=Ambient(Y);
+L;
+pi;
+```
+
+Note that $L:V^2-48=0, X=0$ has no rational points and is geometrically reducible. In particular, one can work out that the residue field is $\kappa(L)=k(W)$ where $k=\mathbb{Q}(a)$ and $a$ is a square root of $3$. Below we define the extension $k/\mathbb{Q}$ as well as a rational function field that we will use to parametrize the exceptional component L with.
+
+```{magma}
+k<a>:=QuadraticField(48);
+kU<U>:=FunctionField(k,1);
+Wu:=U;
+```
+
+```{magma}
+kUX<Xu>:=PowerSeriesRing(kU);
+```
+
+```{magma}
+R<Vpol>:=PolynomialRing(kUX);
+```
+
+By definition we have an expression for $X$ and $W$ in $k(U)(Xu)$ as $W=U$ and $X=Xu$. It remains to find an expansion for $V$. From our observations above we note that when taking residues $\overline{V}=a=\sqrt{3}\in k(W)$, as we mod out by $V^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
+
+```{magma}
+F:=Evaluate(DefiningPolynomial(Y), [Xu, Vpol, Wu]);
+Fprime:=Derivative(F);
+Vu:=4*a;
+for i in [1..4] do
+    Temp:=Vu-Evaluate(F, Vu)/Evaluate(Fprime,Vu);
+    Vu:=Temp;
+end for;
+```
+
+We verify that the power series $Xu,Vu,Wu$ in $k(U)[[Xu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+
+```{magma}
+Evaluate(DefiningPolynomial(Y),[Xu,Vu,Wu])+O(Xu^10);
+```
+
+In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
+
+```{magma}
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
+Yu:=Evaluate(DefiningPolynomials(pi)[2], [Xu, Vu, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
+```
+
+We now compute power series for our desired functions $X-p(T), X-q(T), 6T(T+1), 6T(T-1)$ in order to compute residues.
+
+```{magma}
+Pu:=Evaluate(p, [0,0,Tu]);
+Qu:=Evaluate(p, [0,0,-Tu]);
+f1:=Xu-Pu;
+f2:=Xu-Qu;
+
+g1:=Evaluate(6*t*(t+1), [0,0,Tu]);
+g2:=Evaluate(6*t*(t-1), [0,0,Tu]);
+```
+
+Finally, we compute the residue of the Brauer class $(f_1,g_1)+(f_2,g_2)$ with $f_1=X-p(T)$, $f_2=X-Q(T)$, $g_1=6T(T+1)$, and $g_2=6T(T-1)$ via the residue formula $\text{res}(f,g)=[(-1)^{v(f)v(g)}f_0^{v(g)}g_0^{v(f)}]$ where $f_0,g_0$ are the first nonzero coefficient in the power series expansion of $f_0,g_0$, and we take the equivalence class in $k(U)/k(U)^2$.
+
+```{magma}
+res:=ComputeResidue(f1, g1)*ComputeResidue(f2, g2);
+res;
+Factorization(Integers() ! res);
+```
+
+Thus again we see that the residue is trivial.
+
+
+#### Patch 2
+
+
+Here we pick the component L on the second affine patch Y over $(0,1,0)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+
+```{magma}
+L,Y,pi:=BlowUpDivisor(E,Etilde[4],2);
+```
+
+Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
+
+```{magma}
+A3<X,V,W>:=Ambient(Y);
+L;
+pi;
+```
+
+We define the extension $k/\mathbb{Q}$ as well as a rational function field that we will use to parametrize the exceptional component L with.
+
+```{magma}
+k<a>:=QuadraticField(48);
+kU<U>:=FunctionField(k,1);
+Vu:=U;
+```
+
+```{magma}
+kUX<Xu>:=PowerSeriesRing(kU);
+```
+
+```{magma}
+R<Wpol>:=PolynomialRing(kUX);
+```
+
+By definition we have an expression for $X$ and $W$ in $k(U)(Xu)$ as $W=U$ and $X=Xu$. It remains to find an expansion for $V$. We note that when taking residues we have $\overline{V}=a=\sqrt{3}$, as we mod out by $V^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
+
+```{magma}
+F:=Evaluate(DefiningPolynomial(Y), [Xu, Vu, Wpol]);
+Fprime:=Derivative(F);
+Wu:=4*a;
+for i in [1..4] do
+    Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
+    Wu:=Temp;
+end for;
+```
+
+We verify that the power series $Xu,Vu,Wu$ in $k(U)[[Xu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+
+```{magma}
+Evaluate(DefiningPolynomial(Y),[Xu,Vu,Wu])+O(Xu^10);
+```
+
+In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
+
+```{magma}
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
+Yu:=Evaluate(DefiningPolynomials(pi)[2], [Xu, Vu, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
+```
+
+We now compute power series for our desired functions $X-p(T), X-q(T), 6T(T+1), 6T(T-1)$ in order to compute residues.
+
+```{magma}
+Pu:=Evaluate(p, [0,0,Tu]);
+Qu:=Evaluate(p, [0,0,-Tu]);
+f1:=Xu-Pu;
+f2:=Xu-Qu;
+
+g1:=Evaluate(6*t*(t+1), [0,0,Tu]);
+g2:=Evaluate(6*t*(t-1), [0,0,Tu]);
+```
+
+Finally, we compute the residue of the Brauer class $(f_1,g_1)+(f_2,g_2)$ with $f_1=X-p(T)$, $f_2=X-Q(T)$, $g_1=6T(T+1)$, and $g_2=6T(T-1)$ via the residue formula $\text{res}(f,g)=[(-1)^{v(f)v(g)}f_0^{v(g)}g_0^{v(f)}]$ where $f_0,g_0$ are the first nonzero coefficient in the power series expansion of $f_0,g_0$, and we take the equivalence class in $k(U)/k(U)^2$.
+
+```{magma}
+res:=ComputeResidue(f1, g1)*ComputeResidue(f2, g2);
+res;
+```
+
+```{magma}
+Factorization(Integers() ! res);
+```
+
+Once again, the residue is trivial.
+
+
+#### Patch 3
+
+
+Here we pick the component L on the third affine patch Y over $(0,0,1)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+
+```{magma}
+L,Y,pi:=BlowUpDivisor(E,Etilde[4],3);
+```
+
+```{magma}
+A3<T,V,W>:=Ambient(Y);
+L;
+pi;
+```
+
+We write down a parametrization of our conic $L$. For the parametrization below we took the projective closure and projected away from the rational point $[0,0,1]$.
+
+```{magma}
+kU<U>:=FunctionField(Rationals(), 1);
+Vu:=(-6*U^2-1/8)/(-U^2+1/48)+6;
+Wu:=-12*U/(-U^2+1/48);
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[1,Vu,Wu]) eq 0};
+```
+
+Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
+
+```{magma}
+kUT<Tu>:=PowerSeriesRing(kU);
+```
+
+```{magma}
+R<Wpol>:=PolynomialRing(kUT);
+```
+
+Now we compute an expansion for $W$ in $\mathbb{Q}(U)[[T]]$.
+
+```{magma}
+F:=Evaluate(DefiningPolynomial(Y), [Tu+1, Vu, Wpol]);
+Fprime:=Derivative(F);
+for i in [1..4] do
+    Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
+    Wu:=Temp;
+end for;
+```
+
+We verify that the power series $Tu-1,Vu,Wu$ in $k(U)[[Tu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+
+```{magma}
+Evaluate(DefiningPolynomial(Y),[Tu+1,Vu,Wu])+O(Tu^8);
+```
+
+In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
+
+```{magma}
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Tu, Vu, Wu]);
+Yu:=Evaluate(DefiningPolynomials(pi)[2], [Tu, Vu, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Vu, Wu]);
+```
+
+We now compute power series for our desired functions $X-p(T), X-q(T), 6T(T+1), 6T(T-1)$ in order to compute residues.
+
+```{magma}
+Pu:=Evaluate(p, [0,0,Tu]);
+Qu:=Evaluate(p, [0,0,-Tu]);
+f1:=Xu-Pu;
+f2:=Xu-Qu;
+
+g1:=Evaluate(6*t*(t+1), [0,0,Tu]);
+g2:=Evaluate(6*t*(t-1), [0,0,Tu]);
+```
+
+Finally, we compute the residue of the Brauer class $(f_1,g_1)+(f_2,g_2)$ with $f_1=X-p(T)$, $f_2=X-Q(T)$, $g_1=6T(T+1)$, and $g_2=6T(T-1)$ via the residue formula $\text{res}(f,g)=[(-1)^{v(f)v(g)}f_0^{v(g)}g_0^{v(f)}]$ where $f_0,g_0$ are the first nonzero coefficient in the power series expansion of $f_0,g_0$, and we take the equivalence class in $k(U)/k(U)^2$.
+
+```{magma}
+res:=ComputeResidue(f1, g1)*ComputeResidue(f2, g2);
+res;
+```
+
+```{magma}
+Factorization(Numerator(res));
+Factorization(Denominator(res));
+Factorization(Integers() ! Coefficients(Numerator(res))[1]);
+```
+
+Once again, the residue is trivial.
+
+
+### Computing residue at (0, 0, 3) 
+
+
+We now pick the exceptional component L on the patch Y over $(0, -3, 0)$ of the desingularization $\tilde{E}$ of E, together with the morphism $\pi: Y \to X$.
+
+```{magma}
+L,Y,pi:=BlowUpDivisor(E,Etilde[5],1);
+A3<X,V,W>:=Ambient(Y);
+```
+
+We define a rational function field that we use to parametrize the exceptional component L with
+
+```{magma}
+kU<U>:=FunctionField(Rationals(),1);
+```
+
+We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
+
 ```{magma}
 Factorization(Integers() ! 81);
 ```
 
-Once again, the residue is trivial.
+```{magma}
+L;
+```
+
+Below we find a parametrization of $L$.
+
+```{magma}
+Lc,phiL:=Conic(ProjectiveClosure(L));
+piL:=Parametrization(Lc);
+Q<x, v, w>:=FunctionField(L);
+kU<U>:=FunctionField(Domain(piL));
+Vu:=Pullback(piL, Pullback(Inverse(phiL), v));
+Wu:=Pullback(piL, Pullback(Inverse(phiL), w));
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Vu,Wu]) eq 0};
+```
+
+```{magma}
+kUX<Xu>:=PowerSeriesRing(kU);
+```
+
+```{magma}
+R<Wpol>:=PolynomialRing(kUX);
+```
+
+Another assumption: We set W to be the function in U that we need and we solve T as a power series in $k( U)[[V]]$ from the equation that we have. If V were not a valid choice as uniformizer, we'd probably fail to solve this equation at this point. Below we just compute all the roots and take the one close to the expression Tu that we already computed (because we know our series for T should specialize to Tu on L for V=0). It would be better to explicitly use newton iteration with initial approximation Tu.
+
+```{magma}
+F:=Evaluate(DefiningPolynomial(Y), [Xu, Vu, Wpol]);
+Fprime:=Derivative(F);
+for i in [1..4] do
+    Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
+    Wu:=Temp;
+end for;
+```
+
+We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+
+```{magma}
+Evaluate(DefiningPolynomial(Y),[Xu,Vu,Wu])+O(Xu^8);
+```
+
+In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
+
+```{magma}
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
+Yu:=Evaluate(DefiningPolynomials(pi)[2], [Xu, Vu, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
+```
+
+```{magma}
+Pu:=Evaluate(p, [0,0,Tu]);
+Qu:=Evaluate(p, [0,0,-Tu]);
+f1:=Xu-Pu;
+f2:=Xu-Qu;
+
+g1:=Evaluate(6*t*(t+1), [0,0,Tu]);
+g2:=Evaluate(6*t*(t-1), [0,0,Tu]);
+```
+
+```{magma}
+res:=ComputeResidue(f1, g1)*ComputeResidue(f2, g2);
+res;
+```
+
+Here the residue is immediately seen to be a square.
