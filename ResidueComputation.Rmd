@@ -49,6 +49,7 @@ Support(SingularSubscheme(E_inf));
 
 ```{magma}
 Etilde:=DesingulariseSurfaceByBlowUp(E);
+Length(Etilde[2]);
 Etilde_inf:=DesingulariseSurfaceByBlowUp(E_inf);
 ```
 
@@ -73,7 +74,7 @@ function IsSquareQU(f)
     return IsSquare(R ! Numerator(f)) and IsSquare(R ! Denominator(f));
 end function;
 
-function ComputeAllInterestingResidues(X, Y, T, IsInf)
+function ComputeAllInterestingResidues(X, T, IsInf)
     if IsInf then
         PT := 3*(1-T)^3*(1+3*T);
         QT := 3*(-1-T)^3*(-1+3*T);
@@ -83,16 +84,15 @@ function ComputeAllInterestingResidues(X, Y, T, IsInf)
     end if;
     Glist := [X-PT, X-QT];
     Flist := [T, T+1, T-1, T+3, T-3];
-    return [ComputeResidue(f,g) : f in Flist, g in Glist];
+    if IsInf then
+        Flist := [T, 1+T, 1-T, 1+3*T, 1-3*T];
+    end if;
+    return [ [ ComputeResidue(f,g) : f in Flist ] : g in Glist];
 end function;
 ```
 
-### Computing list of residues for all bad fibers
+## Computing list of residues for all bad fibers
 
-```{magma}
-
-
-```
 
 ### Computing residue at ((-9, 0), 0) 
 
@@ -100,7 +100,7 @@ end function;
 #### Component 1
 
 
-We unpack some of the desingularization data here. We pick one exceptional component L on a patch Y of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we are computing the residue along the original singular fiber $\mathcal{E}_0$.
 
 ```{magma}
 A2<x2,y2>:=AffinePlane(Rationals());
@@ -111,58 +111,37 @@ L;
 We define a rational function field that we use to parametrize the exceptional component L with
 
 ```{magma}
-Q<U>:=FunctionField(Rationals(), 1);
-R<y>:=PolynomialRing(Q);
-kU<a>:=quo<R | y^2-U>;
+kU<U>:=FunctionField(Rationals(), 1);
 ```
 
 We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
 
 ```{magma}
-Xu:=U;
-Yu:=(U+9)*a;
+Xu:=U^2;
+Yu:=U^3+9*U;
 assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
 ```
 
 ```{magma}
-kUT<Tu>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Tu:=Vu;
 ```
 
 ```{magma}
-R<Ypol>:=PolynomialRing(kUT);
-```
-
-Another assumption: We set W to be the function in U that we need and we solve T as a power series in $k( U)[[V]]$ from the equation that we have. If V were not a valid choice as uniformizer, we'd probably fail to solve this equation at this point. Below we just compute all the roots and take the one close to the expression Tu that we already computed (because we know our series for T should specialize to Tu on L for V=0). It would be better to explicitly use newton iteration with initial approximation Tu.
-
-```{magma}
-F:=Evaluate(DefiningPolynomial(E), [Xu, Ypol, Tu]);
-Fprime:=Derivative(F);
-for i in [1..5] do
-    Temp:=Yu-Evaluate(F, Yu)/Evaluate(Fprime,Yu);
-    Yu:=Temp;
-end for;
-```
-
-We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
-
-```{magma}
-Evaluate(DefiningPolynomial(E),[Xu,Yu,Tu])+O(Tu^(10));
-```
-
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
-
-```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray:=AssociativeArray(Integers());
+ResidueArray[0]:=AssociativeArray(Integers());
+ResidueArray[0][1]:=Residues;
 ```
 
 #### Component 2
 
 
-We unpack some of the desingularization data here. We pick one exceptional component L on a patch Y of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((-9, 0),0)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[1],1);
-A3<T,V,W>:=Ambient(Y);
+A3<T,S,W>:=Ambient(Y);
 ```
 
 We define a rational function field that we use to parametrize the exceptional component L with
@@ -174,23 +153,24 @@ kU<U>:=FunctionField(Rationals(),1);
 We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
 
 ```{magma}
-Vu:=3/2*(U^2-1)/U;
+Su:=3/2*(U^2-1)/U;
 Wu:=1/48*(U^2+1)/U;
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Vu,Wu]) eq 0};
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Su,Wu]) eq 0};
 ```
 
 ```{magma}
-kUT<Tu>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Tu:=Vu;
 ```
 
 ```{magma}
-R<Wpol>:=PolynomialRing(kUT);
+R<Wpol>:=PolynomialRing(kUV);
 ```
 
-Another assumption: We set W to be the function in U that we need and we solve T as a power series in $k( U)[[V]]$ from the equation that we have. If V were not a valid choice as uniformizer, we'd probably fail to solve this equation at this point. Below we just compute all the roots and take the one close to the expression Tu that we already computed (because we know our series for T should specialize to Tu on L for V=0). It would be better to explicitly use newton iteration with initial approximation Tu.
+Below we compute a higher order approximation of $W$ in the power series ring $k(U)[[V]]$.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Tu, Vu, Wpol]);
+F:=Evaluate(DefiningPolynomial(Y), [Tu, Su, Wpol]);
 Fprime:=Derivative(F);
 for i in [1..4] do
     Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
@@ -201,19 +181,19 @@ end for;
 We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Tu,Vu,Wu])+O(Tu^(10));
+Evaluate(DefiningPolynomial(Y),[Tu,Su,Wu])+O(Tu^(10));
 ```
 
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
+In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $T,S,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Tu, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Tu, Vu, Wu]);
 Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Vu, Wu]);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[0][2]:=Residues;
 ```
 
 ### Computing residue at ((0, 0), -3) 
@@ -222,7 +202,7 @@ ComputeAllInterestingResidues(Xu, Yu, Tu, false);
 #### Component 1
 
 
-We unpack some of the desingularization data here. We pick one exceptional component L on a patch Y of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we are computing the residue along the original singular fiber $\mathcal{E}_{-3}$.
 
 ```{magma}
 A2<x2,y2>:=AffinePlane(Rationals());
@@ -233,16 +213,14 @@ L;
 We define a rational function field that we use to parametrize the exceptional component L with
 
 ```{magma}
-Q<U>:=FunctionField(Rationals(), 1);
-R<y>:=PolynomialRing(Q);
-kU<a>:=quo<R | y^2-U+144>;
+kU<U>:=FunctionField(Rationals(), 1);
 ```
 
-We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
+We write down a parametrization of L and check that it satisfies that parametrization.
 
 ```{magma}
-Xu:=U;
-Yu:=U*a;
+Xu:=U^2+144;
+Yu:=U^3+144*U;
 assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
 ```
 
@@ -252,40 +230,20 @@ Tu:=Vu-3;
 ```
 
 ```{magma}
-R<Ypol>:=PolynomialRing(kUV);
-```
-
-Another assumption: We set W to be the function in U that we need and we solve T as a power series in $k( U)[[V]]$ from the equation that we have. If V were not a valid choice as uniformizer, we'd probably fail to solve this equation at this point. Below we just compute all the roots and take the one close to the expression Tu that we already computed (because we know our series for T should specialize to Tu on L for V=0). It would be better to explicitly use newton iteration with initial approximation Tu.
-
-```{magma}
-F:=Evaluate(DefiningPolynomial(E), [Xu, Ypol, Tu]);
-Fprime:=Derivative(F);
-for i in [1..3] do
-    Temp:=Yu-Evaluate(F, Yu)/Evaluate(Fprime,Yu);
-    Yu:=Temp;
-end for;
-```
-
-We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
-
-```{magma}
-Evaluate(DefiningPolynomial(E),[Xu,Yu,Tu])+O(Vu^(5));
-```
-
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
-
-```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[-3]:=AssociativeArray(Integers());
+ResidueArray[-3][1]:=Residues;
 ```
 
 #### Component 2
 
 
-We now pick the exceptional component L on the patch Y over $((0, 0), -3)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 3)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[2],1);
-A3<X,V,W>:=Ambient(Y);
+A3<X,S,W>:=Ambient(Y);
+L;
 ```
 
 We define a rational function field that we use to parametrize the exceptional component L with
@@ -294,38 +252,28 @@ We define a rational function field that we use to parametrize the exceptional c
 kU<U>:=FunctionField(Rationals(),1);
 ```
 
-We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
-
-```{magma}
-L;
-```
-
 Below we find a parametrization of $L$.
 
 ```{magma}
 Lc,phiL:=Conic(ProjectiveClosure(L));
 piL:=Parametrization(Lc);
-Q<x, v, w>:=FunctionField(L);
+Q<x, s, w>:=FunctionField(L);
 kU<U>:=FunctionField(Domain(piL));
-Vu:=Pullback(piL, Pullback(Inverse(phiL), v));
+Su:=Pullback(piL, Pullback(Inverse(phiL), s));
 Wu:=Pullback(piL, Pullback(Inverse(phiL), w));
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Vu,Wu]) eq 0};
-Vu;
-Wu;
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Su,Wu]) eq 0};
 ```
 
 ```{magma}
-kUX<Xu>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Xu:=Vu;
 ```
 
-```{magma}
-R<Wpol>:=PolynomialRing(kUX);
-```
-
-Another assumption: We set W to be the function in U that we need and we solve T as a power series in $k( U)[[V]]$ from the equation that we have. If V were not a valid choice as uniformizer, we'd probably fail to solve this equation at this point. Below we just compute all the roots and take the one close to the expression Tu that we already computed (because we know our series for T should specialize to Tu on L for V=0). It would be better to explicitly use newton iteration with initial approximation Tu.
+Below we compute a higher order approximation of $W$ in the power series ring $k(U)[[V]]$.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Xu, Vu, Wpol]);
+R<Wpol>:=PolynomialRing(kUV);
+F:=Evaluate(DefiningPolynomial(Y), [Xu, Su, Wpol]);
 Fprime:=Derivative(F);
 for i in [1..4] do
     Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
@@ -336,19 +284,17 @@ end for;
 We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Xu,Vu,Wu])+O(Xu^8);
-```
-
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
-
-```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Xu, Vu, Wu]);
-Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
+Evaluate(DefiningPolynomial(Y),[Xu,Su,Wu])+O(Vu^8);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Su, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
+```
+
+```{magma}
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[-3][2]:=Residues;
 ```
 
 ### Computing residues at ((0, 0), -1) 
@@ -357,26 +303,25 @@ ComputeAllInterestingResidues(Xu, Yu, Tu, false);
 #### Component 1
 
 
-We unpack some of the desingularization data here. We pick one exceptional component L on a patch Y of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we compute the residue at the original component of $\mathcal{E}_{-1}$
 
 ```{magma}
 A2<x2,y2>:=AffinePlane(Rationals());
 L:=Curve(A2, Evaluate(DefiningPolynomial(E), [x2,y2,-1]));
+L;
 ```
 
 We define a rational function field that we use to parametrize the exceptional component L with
 
 ```{magma}
-Q<U>:=FunctionField(Rationals(), 1);
-R<y>:=PolynomialRing(Q);
-kU<a>:=quo<R | y^2-U-48>;
+kU<U>:=FunctionField(Rationals(), 1);
 ```
 
 We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
 
 ```{magma}
-Xu:=U;
-Yu:=U*a;
+Xu:=U^2-48;
+Yu:=U^3-48*U;
 assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
 ```
 
@@ -385,37 +330,18 @@ kUV<Vu>:=PowerSeriesRing(kU);
 Tu:=Vu-1;
 ```
 
-```{magma}
-R<Ypol>:=PolynomialRing(kUV);
-```
-
-Another assumption: We set W to be the function in U that we need and we solve T as a power series in $k( U)[[V]]$ from the equation that we have. If V were not a valid choice as uniformizer, we'd probably fail to solve this equation at this point. Below we just compute all the roots and take the one close to the expression Tu that we already computed (because we know our series for T should specialize to Tu on L for V=0). It would be better to explicitly use newton iteration with initial approximation Tu.
-
-```{magma}
-F:=Evaluate(DefiningPolynomial(E), [Xu, Ypol, Tu]);
-Fprime:=Derivative(F);
-for i in [1..3] do
-    Temp:=Yu-Evaluate(F, Yu)/Evaluate(Fprime,Yu);
-    Yu:=Temp;
-end for;
-```
-
-We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
-
-```{magma}
-Evaluate(DefiningPolynomial(E),[Xu,Yu,Tu])+O(Vu^(5));
-```
-
 In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[-1]:=AssociativeArray(Integers());
+ResidueArray[-1][1]:=Residues;
 ```
 
-#### Patch 1
+#### Component 2
 
 
-Here we pick the component L on the first affine patch Y over $((0,0),-1)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), -1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[3],1);
@@ -466,55 +392,56 @@ In order to relate all this back to the original coordinates on X, we use the de
 
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Xu, Vu, Wu]);
 Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
 ```
 
-We now compute power series for our desired functions $X-p(T), X-q(T), 6T(T+1), 6T(T-1)$ in order to compute residues.
+
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[-1][2]:=Residues;
 ```
 
-#### Patch 2
+#### Component 3
 
 
-Here we pick the component L on the second affine patch Y over $(0,0,-1)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the second exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), -1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
-L,Y,pi:=BlowUpDivisor(E,Etilde[3],2);
+L,Y,pi:=BlowUpDivisor(E,Etilde[3],3);
 ```
 
 Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
 
 ```{magma}
-A3<X,V,W>:=Ambient(Y);
+A3<X,S,W>:=Ambient(Y);
 L;
 ```
 
 We define the extension $k/\mathbb{Q}$ as well as a rational function field that we will use to parametrize the exceptional component L with.
 
 ```{magma}
-k<a>:=QuadraticField(48);
-kU<U>:=FunctionField(k,1);
-Vu:=U;
+kU<U>:=FunctionField(Rationals(), 1);
+Su:=12*U^2/(-U^2+1/48);
+Wu:=12*U/(-U^2+1/48);
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[-1,Su,Wu]) eq 0};
 ```
 
 ```{magma}
-kUX<Xu>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Xu:=Vu-1;
 ```
 
 ```{magma}
-R<Wpol>:=PolynomialRing(kUX);
+R<Wpol>:=PolynomialRing(kUV);
 ```
 
 By definition we have an expression for $X$ and $W$ in $k(U)(Xu)$ as $W=U$ and $X=Xu$. It remains to find an expansion for $V$. We note that when taking residues we have $\overline{V}=4a=4\sqrt{3}$, as we mod out by $V^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Xu, Vu, Wpol]);
+F:=Evaluate(DefiningPolynomial(Y), [Xu, Su, Wpol]);
 Fprime:=Derivative(F);
-Wu:=4*a;
-for i in [1..4] do
+for i in [1..2] do
     Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
     Wu:=Temp;
 end for;
@@ -523,25 +450,25 @@ end for;
 We verify that the power series $Xu,Vu,Wu$ in $k(U)[[Xu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Xu,Vu,Wu])+O(Xu^10);
+Evaluate(DefiningPolynomial(Y),[Xu,Su,Wu])+O(Vu^6);
 ```
 
 In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Xu, Vu, Wu]);
-Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Su, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[-1][3]:=Residues;
 ```
 
-#### Patch 3
+#### Component 4
 
 
-Here we pick the component L on the third affine patch Y over $((0,0),-1)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the third exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), -1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[3],3);
@@ -590,12 +517,12 @@ In order to relate all this back to the original coordinates on X, we use the de
 
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Tu, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Tu, Vu, Wu]);
 Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Vu, Wu]);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[-1][4]:=Residues;
 ```
 
 ### Computing residues at ((0, 0), 1) 
@@ -604,7 +531,7 @@ ComputeAllInterestingResidues(Xu, Yu, Tu, false);
 #### Component 1
 
 
-We unpack some of the desingularization data here. We pick one exceptional component L on a patch Y of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we compute the residues over the original component $\mathcal{E}_1$.
 
 ```{magma}
 A2<x2,y2>:=AffinePlane(Rationals());
@@ -634,36 +561,15 @@ Tu:=Vu+1;
 ```
 
 ```{magma}
-R<Ypol>:=PolynomialRing(kUV);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[1]:=AssociativeArray(Integers());
+ResidueArray[1][1]:=Residues;
 ```
 
-Another assumption: We set W to be the function in U that we need and we solve T as a power series in $k( U)[[V]]$ from the equation that we have. If V were not a valid choice as uniformizer, we'd probably fail to solve this equation at this point. Below we just compute all the roots and take the one close to the expression Tu that we already computed (because we know our series for T should specialize to Tu on L for V=0). It would be better to explicitly use newton iteration with initial approximation Tu.
-
-```{magma}
-F:=Evaluate(DefiningPolynomial(E), [Xu, Ypol, Tu]);
-Fprime:=Derivative(F);
-for i in [1..3] do
-    Temp:=Yu-Evaluate(F, Yu)/Evaluate(Fprime,Yu);
-    Yu:=Temp;
-end for;
-```
-
-We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
-
-```{magma}
-Evaluate(DefiningPolynomial(E),[Xu,Yu,Tu])+O(Vu^(5));
-```
-
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
-
-```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
-```
-
-#### Patch 1
+#### Component 2
 
 
-Here we pick the component L on the first affine patch Y over $((0,1),0)$ of the desingularization $\tilde{E}$ of E, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[4],1);
@@ -714,18 +620,19 @@ In order to relate all this back to the original coordinates on X, we use the de
 
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Xu, Vu, Wu]);
 Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[1][2]:=Residues;
+Residues;
 ```
 
-#### Patch 2
+#### Component 3
 
 
-Here we pick the component L on the second affine patch Y over $((0,1),0)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the second exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[4],2);
@@ -776,18 +683,18 @@ In order to relate all this back to the original coordinates on X, we use the de
 
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Xu, Vu, Wu]);
 Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[1][3]:=Residues;
 ```
 
-#### Patch 3
+#### Component 4
 
 
-Here we pick the component L on the third affine patch Y over $(0,0,1)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the third exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[4],3);
@@ -836,12 +743,12 @@ In order to relate all this back to the original coordinates on X, we use the de
 
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Tu, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Tu, Vu, Wu]);
 Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Vu, Wu]);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[1][4]:=Residues;
 ```
 
 ### Computing residue at ((0, 0), 3) 
@@ -850,7 +757,7 @@ ComputeAllInterestingResidues(Xu, Yu, Tu, false);
 #### Component 1
 
 
-We unpack some of the desingularization data here. We pick one exceptional component L on a patch Y of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we compute the residues over the original component $\mathcal{E}_3$.
 
 ```{magma}
 A2<x2,y2>:=AffinePlane(Rationals());
@@ -880,36 +787,15 @@ Tu:=Vu+3;
 ```
 
 ```{magma}
-R<Ypol>:=PolynomialRing(kUV);
-```
-
-Another assumption: We set W to be the function in U that we need and we solve T as a power series in $k( U)[[V]]$ from the equation that we have. If V were not a valid choice as uniformizer, we'd probably fail to solve this equation at this point. Below we just compute all the roots and take the one close to the expression Tu that we already computed (because we know our series for T should specialize to Tu on L for V=0). It would be better to explicitly use newton iteration with initial approximation Tu.
-
-```{magma}
-F:=Evaluate(DefiningPolynomial(E), [Xu, Ypol, Tu]);
-Fprime:=Derivative(F);
-for i in [1..3] do
-    Temp:=Yu-Evaluate(F, Yu)/Evaluate(Fprime,Yu);
-    Yu:=Temp;
-end for;
-```
-
-We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
-
-```{magma}
-Evaluate(DefiningPolynomial(E),[Xu,Yu,Tu])+O(Vu^(5));
-```
-
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
-
-```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues:=ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[3]:=AssociativeArray(Integers());
+ResidueArray[3][1]:=Residues;
 ```
 
 #### Component 2
 
 
-We now pick the exceptional component L on the patch Y over $((0, -3), 0)$ of the desingularization $\tilde{E}$ of E, together with the morphism $\pi: Y \to X$.
+Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[5],1);
@@ -920,9 +806,6 @@ We define a rational function field that we use to parametrize the exceptional c
 
 ```{magma}
 kU<U>:=FunctionField(Rationals(),1);
-```
-
-```{magma}
 L;
 ```
 
@@ -946,7 +829,7 @@ kUX<Xu>:=PowerSeriesRing(kU);
 R<Wpol>:=PolynomialRing(kUX);
 ```
 
-Another assumption: We set W to be the function in U that we need and we solve T as a power series in $k( U)[[V]]$ from the equation that we have. If V were not a valid choice as uniformizer, we'd probably fail to solve this equation at this point. Below we just compute all the roots and take the one close to the expression Tu that we already computed (because we know our series for T should specialize to Tu on L for V=0). It would be better to explicitly use newton iteration with initial approximation Tu.
+Here we compute a higher order approximation for $W$ in the power series ring.
 
 ```{magma}
 F:=Evaluate(DefiningPolynomial(Y), [Xu, Vu, Wpol]);
@@ -963,16 +846,14 @@ We verify that the power series in $k(U)[[V]]$ that we have computed, indeed sat
 Evaluate(DefiningPolynomial(Y),[Xu,Vu,Wu])+O(Xu^8);
 ```
 
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
-
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Xu, Vu, Wu]);
 Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, false);
+Residues := ComputeAllInterestingResidues(Xu, Tu, false);
+ResidueArray[3][2]:=Residues;
 ```
 
 ### Computing residues at ((3, 0), $\infty$) 
@@ -981,7 +862,7 @@ ComputeAllInterestingResidues(Xu, Yu, Tu, false);
 #### Component 1
 
 
-We unpack some of the desingularization data here. We pick one exceptional component L on a patch Y of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we compute the residues over the original component $\mathcal{E}_{\infty}$.
 
 ```{magma}
 A2<x2,y2>:=AffinePlane(Rationals());
@@ -1007,41 +888,19 @@ assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
 
 ```{magma}
 kUV<Vu>:=PowerSeriesRing(kU);
-Tu:=Vu;
+Su:=Vu;
 ```
 
 ```{magma}
-R<Ypol>:=PolynomialRing(kUV);
+Residues := ComputeAllInterestingResidues(Xu, Su, true);
+ResidueArray[10]:=AssociativeArray(Integers());
+ResidueArray[10][1]:=Residues;
 ```
 
-Another assumption: We set W to be the function in U that we need and we solve T as a power series in $k( U)[[V]]$ from the equation that we have. If V were not a valid choice as uniformizer, we'd probably fail to solve this equation at this point. Below we just compute all the roots and take the one close to the expression Tu that we already computed (because we know our series for T should specialize to Tu on L for V=0). It would be better to explicitly use newton iteration with initial approximation Tu.
-
-```{magma}
-F:=Evaluate(DefiningPolynomial(E_inf), [Xu, Ypol, Tu]);
-Fprime:=Derivative(F);
-for i in [1..3] do
-    Temp:=Yu-Evaluate(F, Yu)/Evaluate(Fprime,Yu);
-    Yu:=Temp;
-end for;
-Yu;
-```
-
-We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
-
-```{magma}
-Evaluate(DefiningPolynomial(E_inf),[Xu,Yu,Tu])+O(Vu^(5));
-```
-
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
-
-```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Tu, true);
-```
-
-#### Patch 1
+#### Component 2
 
 
-Here we pick the component L on the first affine patch Y over $((3,0),\infty)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E_inf,Etilde_inf[1],1);
@@ -1095,18 +954,18 @@ In order to relate all this back to the original coordinates on $E$, we use the 
 
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Su, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Su, Vu, Wu]);
 Su:=Evaluate(DefiningPolynomials(pi)[3], [Su, Vu, Wu]);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Su, true);
+Residues := ComputeAllInterestingResidues(Xu, Su, true);
+ResidueArray[10][2]:=Residues;
 ```
 
-#### Patch 2
+#### Patch 3
 
 
-Here we pick the component L on the second affine patch Y over $((3,0),\infty)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the second exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E_inf,Etilde_inf[1],2);
@@ -1156,18 +1015,18 @@ In order to relate all this back to the original coordinates on $E$, we use the 
 
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Su, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Su, Vu, Wu]);
 Su:=Evaluate(DefiningPolynomials(pi)[3], [Su, Vu, Wu]);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Su, true);
+Residues:=ComputeAllInterestingResidues(Xu, Su, true);
+ResidueArray[10][3]:=Residues;
 ```
 
-#### Patch 3
+#### Component 4
 
 
-Here we pick the component L on the third affine patch Y over $(0,0,1)$ of the desingularization $\tilde{E}$ of $E$, together with the morphism $\pi: Y \to E$.
+Here we unpack the equations for the third exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E_inf,Etilde_inf[1],3);
@@ -1216,12 +1075,27 @@ In order to relate all this back to the original coordinates on X, we use the de
 
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Su, Vu, Wu]);
-Yu:=Evaluate(DefiningPolynomials(pi)[2], [Su, Vu, Wu]);
 Su:=Evaluate(DefiningPolynomials(pi)[3], [Su, Vu, Wu]);
 ```
 
 ```{magma}
-ComputeAllInterestingResidues(Xu, Yu, Su, true);
+Residues := ComputeAllInterestingResidues(Xu, Su, true);
+ResidueArray[10][4]:=Residues;
+```
+
+```{magma}
+for i in Keys(ResidueArray) do
+    printf "singularity t=%o\n", i;
+    for j in Keys(ResidueArray[i]) do
+        r:=ResidueArray[i][j];
+        printf "residues on component %o:\n", j;
+        printf "x-p:\n";
+        r[1];
+        printf "\nx-q:\n";
+        r[2];
+        printf "\n";
+    end for;
+end for;
 ```
 
 ```{magma}
