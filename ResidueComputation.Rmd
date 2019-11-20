@@ -49,7 +49,6 @@ Support(SingularSubscheme(E_inf));
 
 ```{magma}
 Etilde:=DesingulariseSurfaceByBlowUp(E);
-Length(Etilde[2]);
 Etilde_inf:=DesingulariseSurfaceByBlowUp(E_inf);
 ```
 
@@ -63,6 +62,10 @@ function ComputeResidue(f, g)
     vf:=Valuation(f);
     vg:=Valuation(g);
     
+    if Maximum([vg, vf]) gt 4 then
+        printf "Valuation %o is too high", Maximum([vg,vf]);
+    end if;
+    
     f_0:=Coefficients(f)[1];
     g_0:=Coefficients(g)[1];
     
@@ -75,19 +78,41 @@ function IsSquareQU(f)
 end function;
 
 function ComputeAllInterestingResidues(X, T, IsInf)
-    if IsInf then
-        PT := 3*(1-T)^3*(1+3*T);
-        QT := 3*(-1-T)^3*(-1+3*T);
-    else
-        PT := 3*(T-1)^3*(T+3);
-        QT := 3*(-T-1)^3*(-T+3);
+    PT := 3*(T-1)^3*(T+3);
+    QT := 3*(-T-1)^3*(-T+3);
+    if IsInf then 
+        PT := 3*(1/T-1)^3*(1/T+3);
+        QT := 3*(-1/T-1)^3*(-1/T+3);
     end if;
     Glist := [X-PT, X-QT];
-    Flist := [T, T+1, T-1, T+3, T-3];
+    Flist := [-1,2,3,T, T+1, T-1, T+3, T-3];
     if IsInf then
-        Flist := [T, 1+T, 1-T, 1+3*T, 1-3*T];
+        Flist := [-1,2,3,1/T, 1/T+1, 1/T-1, 1/T+3, 1/T-3];
     end if;
     return [ [ ComputeResidue(f,g) : f in Flist ] : g in Glist];
+end function;
+```
+
+### Compute Parametrization
+
+```{magma}
+function GetRationalPoint(L)
+    Lbar:=ProjectiveClosure(L);
+    C,pi:=Conic(Lbar);
+    P:=Inverse(pi)(RationalPoint(C));
+    return P;
+end function;
+```
+
+```{magma}
+function ComputeParametrization(L, P)
+    kU<U>:=FunctionField(Rationals());
+    Lc:=ProjectiveClosure(L);
+    parm:=Eltseq(Lc(kU)![Evaluate(g,[U,1]): g in DefiningPolynomials(Parametrization(Lc,Lc!P))]);
+    Xu:=parm[1]/parm[3];
+    Yu:=parm[2]/parm[3];
+    assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
+    return Xu, Yu;
 end function;
 ```
 
@@ -111,15 +136,13 @@ L;
 We define a rational function field that we use to parametrize the exceptional component L with
 
 ```{magma}
-kU<U>:=FunctionField(Rationals(), 1);
+kU<U>:=FunctionField(Rationals());
 ```
 
 We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
 
 ```{magma}
-Xu:=U^2;
-Yu:=U^3+9*U;
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
+Xu,Yu:=ComputeParametrization(L, [0, 1, 0]);
 ```
 
 ```{magma}
@@ -129,9 +152,9 @@ Tu:=Vu;
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray:=AssociativeArray(Integers());
-ResidueArray[0]:=AssociativeArray(Integers());
-ResidueArray[0][1]:=Residues;
+ResidueList:=[* *];
+Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 2
@@ -142,19 +165,21 @@ Here we unpack the equations for the first exceptional component L on a patch Y 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[1],1);
 A3<T,S,W>:=Ambient(Y);
+L;
 ```
 
 We define a rational function field that we use to parametrize the exceptional component L with
 
 ```{magma}
-kU<U>:=FunctionField(Rationals(),1);
+kU<U>:=FunctionField(Rationals());
 ```
 
 We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
 
 ```{magma}
-Su:=3/2*(U^2-1)/U;
-Wu:=1/48*(U^2+1)/U;
+A2<S0, W0>:=AffinePlane(Rationals());
+L0:=Curve(A2, Evaluate(DefiningPolynomials(L)[1], [0,S0,W0]));
+Su, Wu:=ComputeParametrization(L0, GetRationalPoint(L0));
 assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Su,Wu]) eq 0};
 ```
 
@@ -172,7 +197,7 @@ Below we compute a higher order approximation of $W$ in the power series ring $k
 ```{magma}
 F:=Evaluate(DefiningPolynomial(Y), [Tu, Su, Wpol]);
 Fprime:=Derivative(F);
-for i in [1..4] do
+for i in [1..3] do
     Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
     Wu:=Temp;
 end for;
@@ -181,19 +206,19 @@ end for;
 We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Tu,Su,Wu])+O(Tu^(10));
+Evaluate(DefiningPolynomial(Y),[Tu+O(Vu^4),Su+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
 In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $T,S,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Tu, Vu, Wu]);
-Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Tu, Su, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Su, Wu]);
 ```
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[0][2]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 ### Computing residue at ((0, 0), -3) 
@@ -213,14 +238,13 @@ L;
 We define a rational function field that we use to parametrize the exceptional component L with
 
 ```{magma}
-kU<U>:=FunctionField(Rationals(), 1);
+kU<U>:=FunctionField(Rationals());
 ```
 
 We write down a parametrization of L and check that it satisfies that parametrization.
 
 ```{magma}
-Xu:=U^2+144;
-Yu:=U^3+144*U;
+Xu,Yu:=ComputeParametrization(L, [0,1,0]);
 assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
 ```
 
@@ -231,14 +255,13 @@ Tu:=Vu-3;
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[-3]:=AssociativeArray(Integers());
-ResidueArray[-3][1]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Component 2
 
 
-Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 3)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
+Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), -3)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[2],1);
@@ -246,21 +269,12 @@ A3<X,S,W>:=Ambient(Y);
 L;
 ```
 
-We define a rational function field that we use to parametrize the exceptional component L with
-
-```{magma}
-kU<U>:=FunctionField(Rationals(),1);
-```
-
 Below we find a parametrization of $L$.
 
 ```{magma}
-Lc,phiL:=Conic(ProjectiveClosure(L));
-piL:=Parametrization(Lc);
-Q<x, s, w>:=FunctionField(L);
-kU<U>:=FunctionField(Domain(piL));
-Su:=Pullback(piL, Pullback(Inverse(phiL), s));
-Wu:=Pullback(piL, Pullback(Inverse(phiL), w));
+A2<S0, W0>:=AffinePlane(Rationals());
+L0:=Curve(A2, Evaluate(DefiningPolynomials(L)[1], [0,S0,W0]));
+Su, Wu:=ComputeParametrization(L0, GetRationalPoint(L0));
 assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Su,Wu]) eq 0};
 ```
 
@@ -284,7 +298,7 @@ end for;
 We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Xu,Su,Wu])+O(Vu^8);
+Evaluate(DefiningPolynomial(Y),[Xu+O(Vu^4),Su+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
 ```{magma}
@@ -294,7 +308,7 @@ Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[-3][2]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 ### Computing residues at ((0, 0), -1) 
@@ -314,14 +328,13 @@ L;
 We define a rational function field that we use to parametrize the exceptional component L with
 
 ```{magma}
-kU<U>:=FunctionField(Rationals(), 1);
+kU<U>:=FunctionField(Rationals());
 ```
 
 We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
 
 ```{magma}
-Xu:=U^2-48;
-Yu:=U^3-48*U;
+Xu,Yu:=ComputeParametrization(L, [0,1,0]);
 assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
 ```
 
@@ -330,12 +343,9 @@ kUV<Vu>:=PowerSeriesRing(kU);
 Tu:=Vu-1;
 ```
 
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $V,W,T$ (apologies for the mess-up in naming here: the two $T$s are not the same), and since we have the latter as power series, we can substitute them to get the required results.
-
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[-1]:=AssociativeArray(Integers());
-ResidueArray[-1][1]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Component 2
@@ -350,56 +360,54 @@ L,Y,pi:=BlowUpDivisor(E,Etilde[3],1);
 Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
 
 ```{magma}
-A3<X,V,W>:=Ambient(Y);
+A3<X,S,W>:=Ambient(Y);
 L;
 ```
 
-Note that $L:V^2-48=0, X=0$ has no rational points and is geometrically reducible. In particular, one can work out that the residue field is $\kappa(L)=k(W)$ where $k=\mathbb{Q}(a)$ and $a$ is a square root of $3$. Below we define the extension $k/\mathbb{Q}$ as well as a rational function field that we will use to parametrize the exceptional component L with.
+Note that $L:S^2-48=0, X=0$ has no rational points and is geometrically reducible. In particular, one can work out that the residue field is $\kappa(L)=k(W)$ where $k=\mathbb{Q}(a)$ and $a$ is a square root of $3$. Below we define the extension $k/\mathbb{Q}$ as well as a rational function field that we will use to parametrize the exceptional component L with.
 
 ```{magma}
 k<a>:=QuadraticField(48);
-kU<U>:=FunctionField(k,1);
+kU<U>:=FunctionField(k);
 Wu:=U;
 ```
 
 ```{magma}
-kUX<Xu>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Xu:=Vu;
 ```
 
 ```{magma}
-R<Vpol>:=PolynomialRing(kUX);
+Q<Spol>:=PolynomialRing(kUV);
 ```
 
-By definition we have an expression for $X$ and $W$ in $k(U)(Xu)$ as $W=U$ and $X=Xu$. It remains to find an expansion for $V$. From our observations above we note that when taking residues $\overline{V}=4a=4\sqrt{3}\in k(W)$, as we mod out by $V^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
+By definition we have an expression for $X$ and $W$ in $k(U)(Vu)$ as $W=U$ and $X=Vu$. It remains to find an expansion for $S$. From our observations above we note that when taking residues $\overline{S}=4a=4\sqrt{3}\in k(W)$, as we mod out by $S^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Xu, Vpol, Wu]);
+F:=Evaluate(DefiningPolynomial(Y), [Xu, Spol, Wu]);
 Fprime:=Derivative(F);
-Vu:=4*a;
+Su:=4*a;
 for i in [1..4] do
-    Temp:=Vu-Evaluate(F, Vu)/Evaluate(Fprime,Vu);
-    Vu:=Temp;
+    Temp:=Su-Evaluate(F, Su)/Evaluate(Fprime,Su);
+    Su:=Temp;
 end for;
 ```
 
-We verify that the power series $Xu,Vu,Wu$ in $k(U)[[Xu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+We verify that the power series $Xu,Su,Wu$ in $k(U)[[Vu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Xu,Vu,Wu])+O(Xu^10);
+Evaluate(DefiningPolynomial(Y),[Xu+O(Vu^4),Su+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
+In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,S,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
-Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Su, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
 ```
-
-
-
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[-1][2]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Component 3
@@ -408,61 +416,60 @@ ResidueArray[-1][2]:=Residues;
 Here we unpack the equations for the second exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), -1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
-L,Y,pi:=BlowUpDivisor(E,Etilde[3],3);
+L,Y,pi:=BlowUpDivisor(E,Etilde[3],2);
 ```
 
 Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
 
 ```{magma}
-A3<X,S,W>:=Ambient(Y);
+A3<R,S,W>:=Ambient(Y);
 L;
 ```
 
-We define the extension $k/\mathbb{Q}$ as well as a rational function field that we will use to parametrize the exceptional component L with.
+Note that $L:S^2-48=0, R=0$ has no rational points and is geometrically reducible. In particular, one can work out that the residue field is $\kappa(L)=k(W)$ where $k=\mathbb{Q}(a)$ and $a$ is a square root of $3$. Below we define the extension $k/\mathbb{Q}$ as well as a rational function field that we will use to parametrize the exceptional component L with.
 
 ```{magma}
-kU<U>:=FunctionField(Rationals(), 1);
-Su:=12*U^2/(-U^2+1/48);
-Wu:=12*U/(-U^2+1/48);
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[-1,Su,Wu]) eq 0};
+k<a>:=QuadraticField(48);
+kU<U>:=FunctionField(k);
+Su:=U;
 ```
 
 ```{magma}
 kUV<Vu>:=PowerSeriesRing(kU);
-Xu:=Vu-1;
+Ru:=Vu;
 ```
 
 ```{magma}
-R<Wpol>:=PolynomialRing(kUV);
+Q<Wpol>:=PolynomialRing(kUV);
 ```
 
-By definition we have an expression for $X$ and $W$ in $k(U)(Xu)$ as $W=U$ and $X=Xu$. It remains to find an expansion for $V$. We note that when taking residues we have $\overline{V}=4a=4\sqrt{3}$, as we mod out by $V^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
+By definition we have an expression for $S$ and $W$ in $k(U)(Vu)$ as $S=U$ and $R=Vu$. It remains to find an expansion for $W$. From our observations above we note that when taking residues $\overline{W}=4a=4\sqrt{3}\in k(W)$, as we mod out by $W^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Xu, Su, Wpol]);
+F:=Evaluate(DefiningPolynomial(Y), [Ru, Su, Wpol]);
 Fprime:=Derivative(F);
-for i in [1..2] do
+Wu:=4*a;
+for i in [1..4] do
     Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
     Wu:=Temp;
 end for;
 ```
 
-We verify that the power series $Xu,Vu,Wu$ in $k(U)[[Xu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+We verify that the power series $Ru,Su,Wu$ in $k(U)[[Vu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Xu,Su,Wu])+O(Vu^6);
+Evaluate(DefiningPolynomial(Y),[Ru+O(Vu^4),Su+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
+In order to relate all this back to the original coordinates on $\mathcal{E}$, we use the description of pi, that expresses $X,Y,T$ in terms of $R,S,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Su, Wu]);
-Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Ru, Su, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Ru, Su, Wu]);
 ```
-
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[-1][3]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Component 4
@@ -475,31 +482,30 @@ L,Y,pi:=BlowUpDivisor(E,Etilde[3],3);
 ```
 
 ```{magma}
-A3<T,V,W>:=Ambient(Y);
+A3<T,S,W>:=Ambient(Y);
 L;
 ```
 
 We write down a parametrization of our conic $L$. For the parametrization below we took the projective closure and projected away from the rational point $[0,0,1]$.
 
 ```{magma}
-kU<U>:=FunctionField(Rationals(), 1);
-Vu:=(-6*U^2-1/8)/(-U^2+1/48)-6;
-Wu:=-12*U/(-U^2+1/48);
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[-1,Vu,Wu]) eq 0};
+kU<U>:=FunctionField(Rationals());
+A2<S0, W0>:=AffinePlane(Rationals());
+L0:=Curve(A2, Evaluate(DefiningPolynomials(L)[1], [-1,S0,W0]));
+Su, Wu:=ComputeParametrization(L0, GetRationalPoint(L0));
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[-1,Su,Wu]) eq 0};
 ```
 
 ```{magma}
-kUT<Tu>:=PowerSeriesRing(kU);
-```
-
-```{magma}
-R<Wpol>:=PolynomialRing(kUT);
+kUV<Vu>:=PowerSeriesRing(kU);
+Tu:=Vu-1;
+R<Wpol>:=PolynomialRing(kUV);
 ```
 
 Now we compute an expansion for $W$ in $\mathbb{Q}(U)[[T]]$.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Tu-1, Vu, Wpol]);
+F:=Evaluate(DefiningPolynomial(Y), [Tu, Su, Wpol]);
 Fprime:=Derivative(F);
 for i in [1..4] do
     Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
@@ -507,22 +513,22 @@ for i in [1..4] do
 end for;
 ```
 
-We verify that the power series $Tu-1,Vu,Wu$ in $k(U)[[Tu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+We verify that the power series $Tu,Vu,Wu$ in $k(U)[[Tu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Tu-1,Vu,Wu])+O(Tu^8);
+Evaluate(DefiningPolynomial(Y),[Tu+O(Vu^4),Su+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
 In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Tu, Vu, Wu]);
-Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Tu, Su, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Su, Wu]);
 ```
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[-1][4]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 ### Computing residues at ((0, 0), 1) 
@@ -536,24 +542,17 @@ Here we compute the residues over the original component $\mathcal{E}_1$.
 ```{magma}
 A2<x2,y2>:=AffinePlane(Rationals());
 L:=Curve(A2, Evaluate(DefiningPolynomial(E), [x2,y2,1]));
-L;
 ```
 
 We define a rational function field that we use to parametrize the exceptional component L with
 
 ```{magma}
-Q<U>:=FunctionField(Rationals(), 1);
-R<y>:=PolynomialRing(Q);
-kU<a>:=quo<R | y^2-U-48>;
+kU<U>:=FunctionField(Rationals());
+Xu,Yu:=ComputeParametrization(L, [0,1,0]);
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
 ```
 
 We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
-
-```{magma}
-Xu:=U;
-Yu:=U*a;
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
-```
 
 ```{magma}
 kUV<Vu>:=PowerSeriesRing(kU);
@@ -562,8 +561,7 @@ Tu:=Vu+1;
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[1]:=AssociativeArray(Integers());
-ResidueArray[1][1]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Component 2
@@ -578,7 +576,7 @@ L,Y,pi:=BlowUpDivisor(E,Etilde[4],1);
 Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
 
 ```{magma}
-A3<X,V,W>:=Ambient(Y);
+A3<X,S,W>:=Ambient(Y);
 L;
 ```
 
@@ -586,47 +584,47 @@ Note that $L:V^2-48=0, X=0$ has no rational points and is geometrically reducibl
 
 ```{magma}
 k<a>:=QuadraticField(48);
-kU<U>:=FunctionField(k,1);
+kU<U>:=FunctionField(k);
 Wu:=U;
 ```
 
 ```{magma}
-kUX<Xu>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Xu:=Vu;
 ```
 
 ```{magma}
-R<Vpol>:=PolynomialRing(kUX);
+Q<Spol>:=PolynomialRing(kUV);
 ```
 
-By definition we have an expression for $X$ and $W$ in $k(U)(Xu)$ as $W=U$ and $X=Xu$. It remains to find an expansion for $V$. From our observations above we note that when taking residues $\overline{V}=4a=4\sqrt{3}\in k(W)$, as we mod out by $V^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
+By definition we have an expression for $X$ and $W$ in $k(U)(Xu)$ as $W=U$ and $X=Xu$. It remains to find an expansion for $S$. From our observations above we note that when taking residues $\overline{S}=4a=4\sqrt{3}\in k(W)$, as we mod out by $S^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Xu, Vpol, Wu]);
+F:=Evaluate(DefiningPolynomial(Y), [Xu, Spol, Wu]);
 Fprime:=Derivative(F);
-Vu:=4*a;
+Su:=4*a;
 for i in [1..4] do
-    Temp:=Vu-Evaluate(F, Vu)/Evaluate(Fprime,Vu);
-    Vu:=Temp;
+    Temp:=Su-Evaluate(F, Su)/Evaluate(Fprime,Su);
+    Su:=Temp;
 end for;
 ```
 
-We verify that the power series $Xu,Vu,Wu$ in $k(U)[[Xu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+We verify that the power series $Xu,Su,Wu$ in $k(U)[[Vu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Xu,Vu,Wu])+O(Xu^10);
+Evaluate(DefiningPolynomial(Y),[Xu+O(Vu^4),Su+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
 In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
-Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Su, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
 ```
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[1][2]:=Residues;
-Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Component 3
@@ -641,7 +639,7 @@ L,Y,pi:=BlowUpDivisor(E,Etilde[4],2);
 Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{48})=\mathbb{Q}(\sqrt{3})$.
 
 ```{magma}
-A3<X,V,W>:=Ambient(Y);
+A3<R,S,W>:=Ambient(Y);
 L;
 ```
 
@@ -649,22 +647,23 @@ We define the extension $k/\mathbb{Q}$ as well as a rational function field that
 
 ```{magma}
 k<a>:=QuadraticField(48);
-kU<U>:=FunctionField(k,1);
-Vu:=U;
+kU<U>:=FunctionField(k);
+Su:=U;
 ```
 
 ```{magma}
-kUX<Xu>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Ru:=Vu;
 ```
 
 ```{magma}
-R<Wpol>:=PolynomialRing(kUX);
+Q<Wpol>:=PolynomialRing(kUV);
 ```
 
-By definition we have an expression for $X$ and $W$ in $k(U)(Xu)$ as $W=U$ and $X=Xu$. It remains to find an expansion for $V$. We note that when taking residues we have $\overline{V}=4a=4\sqrt{3}$, as we mod out by $V^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
+By definition we have an expression for $R$ and $S$ in $k(U)(Xu)$ as $S=U$ and $R=Vu$. It remains to find an expansion for $W$. We note that when taking residues we have $\overline{W}=4a=4\sqrt{3}$, as we mod out by $W^2-48$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Xu, Vu, Wpol]);
+F:=Evaluate(DefiningPolynomial(Y), [Ru, Su, Wpol]);
 Fprime:=Derivative(F);
 Wu:=4*a;
 for i in [1..4] do
@@ -673,22 +672,22 @@ for i in [1..4] do
 end for;
 ```
 
-We verify that the power series $Xu,Vu,Wu$ in $k(U)[[Xu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+We verify that the power series $Ru,Su,Wu$ in $k(U)[[Vu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Xu,Vu,Wu])+O(Xu^10);
+Evaluate(DefiningPolynomial(Y),[Ru+O(Vu^4),Su+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
+In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $R,S,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
-Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Ru, Su, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Ru, Su, Wu]);
 ```
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[1][3]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Component 4
@@ -701,31 +700,33 @@ L,Y,pi:=BlowUpDivisor(E,Etilde[4],3);
 ```
 
 ```{magma}
-A3<T,V,W>:=Ambient(Y);
+A3<T,S,W>:=Ambient(Y);
 L;
 ```
 
-We write down a parametrization of our conic $L$. For the parametrization below we took the projective closure and projected away from the rational point $[0,0,1]$.
+We write down a parametrization of our conic $L$.
 
 ```{magma}
-kU<U>:=FunctionField(Rationals(), 1);
-Vu:=(-6*U^2-1/8)/(-U^2+1/48)+6;
-Wu:=-12*U/(-U^2+1/48);
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[1,Vu,Wu]) eq 0};
+kU<U>:=FunctionField(Rationals());
+A2<S0, W0>:=AffinePlane(Rationals());
+L0:=Curve(A2, Evaluate(DefiningPolynomials(L)[1], [1,S0,W0]));
+Su, Wu:=ComputeParametrization(L0, GetRationalPoint(L0));
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[1,Su,Wu]) eq 0};
 ```
 
 ```{magma}
-kUT<Tu>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Tu:=Vu+1;
 ```
 
 ```{magma}
-R<Wpol>:=PolynomialRing(kUT);
+Q<Wpol>:=PolynomialRing(kUV);
 ```
 
-Now we compute an expansion for $W$ in $\mathbb{Q}(U)[[T]]$.
+Now we compute an expansion for $W$ in $\mathbb{Q}(U)[[V]]$.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Tu+1, Vu, Wpol]);
+F:=Evaluate(DefiningPolynomial(Y), [Tu, Su, Wpol]);
 Fprime:=Derivative(F);
 for i in [1..4] do
     Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
@@ -733,22 +734,22 @@ for i in [1..4] do
 end for;
 ```
 
-We verify that the power series $Tu-1,Vu,Wu$ in $k(U)[[Tu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+We verify that the power series $Tu,Su,Wu$ in $k(U)[[Vu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Tu+1,Vu,Wu])+O(Tu^8);
+Evaluate(DefiningPolynomial(Y),[Tu+O(Vu^4),Su+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
 In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Tu, Vu, Wu]);
-Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Tu, Su, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Su, Wu]);
 ```
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[1][4]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 ### Computing residue at ((0, 0), 3) 
@@ -762,24 +763,17 @@ Here we compute the residues over the original component $\mathcal{E}_3$.
 ```{magma}
 A2<x2,y2>:=AffinePlane(Rationals());
 L:=Curve(A2, Evaluate(DefiningPolynomial(E), [x2,y2,3]));
-L;
 ```
 
 We define a rational function field that we use to parametrize the exceptional component L with
 
 ```{magma}
-Q<U>:=FunctionField(Rationals(), 1);
-R<y>:=PolynomialRing(Q);
-kU<a>:=quo<R | y^2-U+144>;
+kU<U>:=FunctionField(Rationals());
+Xu,Yu:=ComputeParametrization(L, [0,1,0]);
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
 ```
 
 We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
-
-```{magma}
-Xu:=U;
-Yu:=U*a;
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
-```
 
 ```{magma}
 kUV<Vu>:=PowerSeriesRing(kU);
@@ -788,51 +782,43 @@ Tu:=Vu+3;
 
 ```{magma}
 Residues:=ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[3]:=AssociativeArray(Integers());
-ResidueArray[3][1]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Component 2
 
 
-Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
+Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 3)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E,Etilde[5],1);
-A3<X,V,W>:=Ambient(Y);
-```
-
-We define a rational function field that we use to parametrize the exceptional component L with
-
-```{magma}
-kU<U>:=FunctionField(Rationals(),1);
+A3<X,S,W>:=Ambient(Y);
 L;
 ```
 
 Below we find a parametrization of $L$.
 
 ```{magma}
-Lc,phiL:=Conic(ProjectiveClosure(L));
-piL:=Parametrization(Lc);
-Q<x, v, w>:=FunctionField(L);
-kU<U>:=FunctionField(Domain(piL));
-Vu:=Pullback(piL, Pullback(Inverse(phiL), v));
-Wu:=Pullback(piL, Pullback(Inverse(phiL), w));
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Vu,Wu]) eq 0};
+kU<U>:=FunctionField(Rationals());
+A2<S0, W0>:=AffinePlane(Rationals());
+L0:=Curve(A2, Evaluate(DefiningPolynomials(L)[1], [0,S0,W0]));
+Su, Wu:=ComputeParametrization(L0, GetRationalPoint(L0));
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Su,Wu]) eq 0};
 ```
 
 ```{magma}
-kUX<Xu>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Xu:=Vu;
 ```
 
 ```{magma}
-R<Wpol>:=PolynomialRing(kUX);
+Q<Wpol>:=PolynomialRing(kUV);
 ```
 
 Here we compute a higher order approximation for $W$ in the power series ring.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Xu, Vu, Wpol]);
+F:=Evaluate(DefiningPolynomial(Y), [Xu, Su, Wpol]);
 Fprime:=Derivative(F);
 for i in [1..4] do
     Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
@@ -843,17 +829,17 @@ end for;
 We verify that the power series in $k(U)[[V]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Xu,Vu,Wu])+O(Xu^8);
+Evaluate(DefiningPolynomial(Y),[Xu+O(Vu^4),Su+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Vu, Wu]);
-Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Xu, Su, Wu]);
+Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
 ```
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
-ResidueArray[3][2]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 ### Computing residues at ((3, 0), $\infty$) 
@@ -873,18 +859,12 @@ L;
 We define a rational function field that we use to parametrize the exceptional component L with
 
 ```{magma}
-Q<U>:=FunctionField(Rationals(), 1);
-R<y>:=PolynomialRing(Q);
-kU<a>:=quo<R | y^2-U^3+6*U^2-9*U>;
+kU<U>:=FunctionField(Rationals());
+Xu,Yu:=ComputeParametrization(L, [0,1,0]);
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
 ```
 
 We write down a parametrization of L and check that it satisfies that parametrization. In particular, we see that "V" on Y vanishes on L (we'll see we can use it as a uniformizer at the generic point of L)
-
-```{magma}
-Xu:=U;
-Yu:=a;
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[Xu,Yu]) eq 0};
-```
 
 ```{magma}
 kUV<Vu>:=PowerSeriesRing(kU);
@@ -893,14 +873,13 @@ Su:=Vu;
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Su, true);
-ResidueArray[10]:=AssociativeArray(Integers());
-ResidueArray[10][1]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Component 2
 
 
-Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), 1)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
+Here we unpack the equations for the first exceptional component L on a patch Y of the desingularization $\tilde{\mathcal{E}}$ of $\mathcal{E}$ over $((0,0), \infty)$, together with the blowdown morphism $\pi: Y \to \mathcal{E}$.
 
 ```{magma}
 L,Y,pi:=BlowUpDivisor(E_inf,Etilde_inf[1],1);
@@ -909,57 +888,58 @@ L,Y,pi:=BlowUpDivisor(E_inf,Etilde_inf[1],1);
 Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{3})$.
 
 ```{magma}
-A3<S,V,W>:=Ambient(Y);
+A3<S,R,W>:=Ambient(Y);
 L;
 ```
 
 The variable $S$ corresponds to $1/t$ in our original coordinates.
 
 
-Note that $L:V^2-3=0, S=0$ has no rational points and is geometrically reducible. In particular, one can work out that the residue field is $\kappa(L)=k(W)$ where $k=\mathbb{Q}(a)$ and $a$ is a square root of $3$. Below we define the extension $k/\mathbb{Q}$ as well as a rational function field that we will use to parametrize the exceptional component L with.
+Note that $L:R^2-3=0, S=0$ has no rational points and is geometrically reducible. In particular, one can work out that the residue field is $\kappa(L)=k(W)$ where $k=\mathbb{Q}(a)$ and $a$ is a square root of $3$. Below we define the extension $k/\mathbb{Q}$ as well as a rational function field that we will use to parametrize the exceptional component L with.
 
 ```{magma}
 k<a>:=QuadraticField(3);
-kU<U>:=FunctionField(k,1);
+kU<U>:=FunctionField(k);
 Wu:=U;
 ```
 
 ```{magma}
-kUS<Su>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Su:=Vu;
 ```
 
 ```{magma}
-R<Vpol>:=PolynomialRing(kUS);
+Q<Rpol>:=PolynomialRing(kUV);
 ```
 
-By definition we have an expression for $S$ and $W$ in $k(U)(Su)$ as $W=U$ and $S=Xu$. It remains to find an expansion for $V$. From our observations above we note that when taking residues $\overline{V}=a=\sqrt{3}\in k(W)$, as we mod out by $V^2-3$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
+By definition we have an expression for $S$ and $W$ in $k(U)(Vu)$ as $W=U$ and $S=Vu$. It remains to find an expansion for $R$. From our observations above we note that when taking residues $\overline{R}=a=\sqrt{3}\in k(W)$, as we mod out by $R^2-3$, and so we have a first order approximation. Applying Newton iteration gives us enough terms to compute residues.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Su, Vpol, Wu]);
+F:=Evaluate(DefiningPolynomial(Y), [Su, Rpol, Wu]);
 Fprime:=Derivative(F);
-Vu:=a;
+Ru:=a;
 for i in [1..4] do
-    Temp:=Vu-Evaluate(F, Vu)/Evaluate(Fprime,Vu);
-    Vu:=Temp;
+    Temp:=Ru-Evaluate(F, Ru)/Evaluate(Fprime,Ru);
+    Ru:=Temp;
 end for;
 ```
 
-We verify that the power series $Su,Vu,Wu$ in $k(U)[[Su]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+We verify that the power series $Su,Ru,Wu$ in $k(U)[[Vu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Su,Vu,Wu])+O(Su^10);
+Evaluate(DefiningPolynomial(Y),[Su+O(Vu^4),Ru+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
 In order to relate all this back to the original coordinates on $E$, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Su, Vu, Wu]);
-Su:=Evaluate(DefiningPolynomials(pi)[3], [Su, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Su, Ru, Wu]);
+Su:=Evaluate(DefiningPolynomials(pi)[3], [Su, Ru, Wu]);
 ```
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Su, true);
-ResidueArray[10][2]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Patch 3
@@ -974,30 +954,30 @@ L,Y,pi:=BlowUpDivisor(E_inf,Etilde_inf[1],2);
 Looking at the equation of $L$ we note that it has no rational points and is geometrically reducible. This means that the residue field $k(L)$ will be of the form $k(u)$ with $k$ some finite extension of $\mathbb{Q}$; in our case $k=\mathbb{Q}(\sqrt{3})$.
 
 ```{magma}
-A3<S,V,W>:=Ambient(Y);
+A3<P,R,W>:=Ambient(Y);
 L;
-Factorization(972);
 ```
 
-Here we see that $L:W^2/972-(V+1/18)^2=0$ and therefore $L$ reducible to the product of two lines over $\mathbb{Q}(\sqrt{972})=\mathbb{Q}(\sqrt{3})$. Thus the residue field $\kappa(L)$ is $\mathbb{Q}(\sqrt{3})(U)$ with $U=V$.
+Here we see that $L:W^2/972-(R+1/18)^2=0$ and therefore $L$ reducible to the product of two lines over $\mathbb{Q}(\sqrt{972})=\mathbb{Q}(\sqrt{3})$. Thus the residue field $\kappa(L)$ is $\mathbb{Q}(\sqrt{3})(U)$ with $U=R$.
 
 ```{magma}
 k<a>:=QuadraticField(3);
-kU<U>:=FunctionField(k,1);
-Vu:=U;
-Wu:=(18*Vu+1)*a;
+kU<U>:=FunctionField(k);
+Ru:=U;
+Wu:=(18*Ru+1)*a;
 ```
 
 ```{magma}
-kUS<Su>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Pu:=Vu;
 ```
 
 ```{magma}
-R<Wpol>:=PolynomialRing(kUS);
+Q<Wpol>:=PolynomialRing(kUV);
 ```
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Su, Vu, Wpol]);
+F:=Evaluate(DefiningPolynomial(Y), [Pu, Ru, Wpol]);
 Fprime:=Derivative(F);
 for i in [1..4] do
     Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
@@ -1005,22 +985,22 @@ for i in [1..4] do
 end for;
 ```
 
-We verify that the power series $Su,Vu,Wu$ in $k(U)[[Su]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+We verify that the power series $Pu,Ru,Wu$ in $k(U)[[Vu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Su,Vu,Wu])+O(Su^10);
+Evaluate(DefiningPolynomial(Y),[Pu+O(Vu^4),Ru+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
-In order to relate all this back to the original coordinates on $E$, we use the description of pi, that expresses $X,Y,T$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
+In order to relate all this back to the original coordinates on $E$, we use the description of pi, that expresses $X,Y,T$ in terms of $P,R,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Su, Vu, Wu]);
-Su:=Evaluate(DefiningPolynomials(pi)[3], [Su, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Pu, Ru, Wu]);
+Su:=Evaluate(DefiningPolynomials(pi)[3], [Pu, Ru, Wu]);
 ```
 
 ```{magma}
 Residues:=ComputeAllInterestingResidues(Xu, Su, true);
-ResidueArray[10][3]:=Residues;
+Append(~ResidueList,Residues);
 ```
 
 #### Component 4
@@ -1033,31 +1013,33 @@ L,Y,pi:=BlowUpDivisor(E_inf,Etilde_inf[1],3);
 ```
 
 ```{magma}
-A3<S,V,W>:=Ambient(Y);
+A3<S,R,W>:=Ambient(Y);
 L;
 ```
 
-We write down a parametrization of our conic $L$. For the parametrization below we took the projective closure and projected away from the rational point $[24,0,1]$.
+We write down a parametrization of our conic $L$.
 
 ```{magma}
-kU<U>:=FunctionField(Rationals(), 1);
-Vu:=(24*U^2+8)/(-U^2+1/3);
-Wu:=48*U/(-U^2+1/3);
-assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Vu,Wu]) eq 0};
+kU<U>:=FunctionField(Rationals());
+A2<R0, W0>:=AffinePlane(Rationals());
+L0:=Curve(A2, Evaluate(DefiningPolynomials(L)[1], [0,R0,W0]));
+Ru, Wu:=ComputeParametrization(L0, GetRationalPoint(L0));
+assert forall{f: f in DefiningPolynomials(L) |Evaluate(f,[0,Ru,Wu]) eq 0};
 ```
 
 ```{magma}
-kUS<Su>:=PowerSeriesRing(kU);
+kUV<Vu>:=PowerSeriesRing(kU);
+Su:=Vu;
 ```
 
 ```{magma}
-R<Wpol>:=PolynomialRing(kUS);
+Q<Wpol>:=PolynomialRing(kUV);
 ```
 
-Now we compute an expansion for $W$ in $\mathbb{Q}(U)[[S]]$.
+Now we compute an expansion for $W$ in $\mathbb{Q}(U)[[Vu]]$.
 
 ```{magma}
-F:=Evaluate(DefiningPolynomial(Y), [Su, Vu, Wpol]);
+F:=Evaluate(DefiningPolynomial(Y), [Su, Ru, Wpol]);
 Fprime:=Derivative(F);
 for i in [1..4] do
     Temp:=Wu-Evaluate(F, Wu)/Evaluate(Fprime,Wu);
@@ -1065,39 +1047,57 @@ for i in [1..4] do
 end for;
 ```
 
-We verify that the power series $Su,Vu,Wu$ in $k(U)[[Tu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
+We verify that the power series $Su,Ru,Wu$ in $k(U)[[Vu]]$ that we have computed, indeed satisfy the defining polynomial for $Y$.
 
 ```{magma}
-Evaluate(DefiningPolynomial(Y),[Su,Vu,Wu])+O(Su^8);
+Evaluate(DefiningPolynomial(Y),[Su+O(Vu^4),Ru+O(Vu^4),Wu+O(Vu^4)]);
 ```
 
-In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,S$ in terms of $X,V,W$, and since we have the latter as power series, we can substitute them to get the required results.
+In order to relate all this back to the original coordinates on X, we use the description of pi, that expresses $X,Y,S$ in terms of $S,R,W$, and since we have the latter as power series, we can substitute them to get the required results.
 
 ```{magma}
-Xu:=Evaluate(DefiningPolynomials(pi)[1], [Su, Vu, Wu]);
-Su:=Evaluate(DefiningPolynomials(pi)[3], [Su, Vu, Wu]);
+Xu:=Evaluate(DefiningPolynomials(pi)[1], [Su, Ru, Wu]);
+Su:=Evaluate(DefiningPolynomials(pi)[3], [Su, Ru, Wu]);
+Xu+O(Vu^4);
+Su+O(Vu^4);
 ```
 
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Su, true);
-ResidueArray[10][4]:=Residues;
+Append(~ResidueList,Residues);
+Residues;
 ```
 
+**Working on analyzing the residues**
+
 ```{magma}
-for i in Keys(ResidueArray) do
-    printf "singularity t=%o\n", i;
-    for j in Keys(ResidueArray[i]) do
-        r:=ResidueArray[i][j];
-        printf "residues on component %o:\n", j;
-        printf "x-p:\n";
-        r[1];
-        printf "\nx-q:\n";
-        r[2];
-        printf "\n";
-    end for;
+W:=[];
+for Vpair in ResidueList do
+    V:=&cat Vpair;
+    FnFactorBasis:={a[1]: a in &cat[Factorization(Numerator(v)): v in V] cat &cat[Factorization(Denominator(v)): v in V]};
+    KK:=Universe(V);
+    Kc:=BaseRing(KK);
+    OK:=IntegerRing(Kc);
+    if OK cmpeq IntegerRing() then
+      S:=PrimeFactors(&*[Numerator(c)*Denominator(c) where c:=LeadingCoefficient(Numerator(a)): a in V]);
+    else
+      S:=Support(&*[Numerator(c)*Denominator(c) where c:=LeadingCoefficient(Numerator(a)): a in V]*OK);
+    end if;
+    Append(~W,[[Valuation(v,p): p in FnFactorBasis]cat [Valuation(LeadingCoefficient(Numerator(v)),p):p in S] cat [Sign(Rationals()!Numerator(c)*Denominator(c)) where c:=LeadingCoefficient(Numerator(v))]:v in V]);
+    //Append(~W,[[Valuation(v,p): p in FnFactorBasis]:v in V]);
 end for;
 ```
 
 ```{magma}
+M:=Matrix(GF(2),[&cat[w[i]: w in W]: i in [1..#W[1]]]);
+Kernel(M);
+```
 
+```{magma}
+WW:=Matrix(GF(2),[[0,1,1,1,1,0,0,0,0,1,1,1,0,1,0,0]]);
+WW*M;
+```
+
+```{magma}
+[[-1,2,3,T, T+1, T-1, T+3, T-3, -1,2,3,T, T+1, T-1, T+3, T-3][i]: i in [1..#Eltseq(b)] | b[i] eq 1] where b:=Basis(bs)[3];
 ```
