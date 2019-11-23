@@ -219,6 +219,7 @@ Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Su, Wu]);
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 ### Computing residue at ((0, 0), -3) 
@@ -256,6 +257,7 @@ Tu:=Vu-3;
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 2
@@ -309,6 +311,7 @@ Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 ### Computing residues at ((0, 0), -1) 
@@ -346,6 +349,7 @@ Tu:=Vu-1;
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 2
@@ -408,6 +412,7 @@ Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 3
@@ -470,6 +475,7 @@ Tu:=Evaluate(DefiningPolynomials(pi)[3], [Ru, Su, Wu]);
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 4
@@ -529,6 +535,7 @@ Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Su, Wu]);
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 ### Computing residues at ((0, 0), 1) 
@@ -562,6 +569,7 @@ Tu:=Vu+1;
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 2
@@ -625,6 +633,7 @@ Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 3
@@ -688,6 +697,7 @@ Tu:=Evaluate(DefiningPolynomials(pi)[3], [Ru, Su, Wu]);
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 4
@@ -750,6 +760,7 @@ Tu:=Evaluate(DefiningPolynomials(pi)[3], [Tu, Su, Wu]);
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 ### Computing residue at ((0, 0), 3) 
@@ -783,6 +794,7 @@ Tu:=Vu+3;
 ```{magma}
 Residues:=ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 2
@@ -840,6 +852,7 @@ Tu:=Evaluate(DefiningPolynomials(pi)[3], [Xu, Su, Wu]);
 ```{magma}
 Residues := ComputeAllInterestingResidues(Xu, Tu, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 ### Computing residues at ((3, 0), $\infty$) 
@@ -872,8 +885,9 @@ Su:=Vu;
 ```
 
 ```{magma}
-Residues := ComputeAllInterestingResidues(Xu, Su, true);
+Residues := ComputeAllInterestingResidues(Xu/Su^4, 1/Su, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 2
@@ -938,8 +952,9 @@ Su:=Evaluate(DefiningPolynomials(pi)[3], [Su, Ru, Wu]);
 ```
 
 ```{magma}
-Residues := ComputeAllInterestingResidues(Xu, Su, true);
+Residues := ComputeAllInterestingResidues(Xu/Su^4, 1/Su, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Patch 3
@@ -999,8 +1014,9 @@ Su:=Evaluate(DefiningPolynomials(pi)[3], [Pu, Ru, Wu]);
 ```
 
 ```{magma}
-Residues:=ComputeAllInterestingResidues(Xu, Su, true);
+Residues:=ComputeAllInterestingResidues(Xu/Su^4, 1/Su, false);
 Append(~ResidueList,Residues);
+Residues;
 ```
 
 #### Component 4
@@ -1058,12 +1074,10 @@ In order to relate all this back to the original coordinates on X, we use the de
 ```{magma}
 Xu:=Evaluate(DefiningPolynomials(pi)[1], [Su, Ru, Wu]);
 Su:=Evaluate(DefiningPolynomials(pi)[3], [Su, Ru, Wu]);
-Xu+O(Vu^4);
-Su+O(Vu^4);
 ```
 
 ```{magma}
-Residues := ComputeAllInterestingResidues(Xu, Su, true);
+Residues := ComputeAllInterestingResidues(Xu/Su^4, 1/Su, false);
 Append(~ResidueList,Residues);
 Residues;
 ```
@@ -1079,18 +1093,28 @@ for Vpair in ResidueList do
     Kc:=BaseRing(KK);
     OK:=IntegerRing(Kc);
     if OK cmpeq IntegerRing() then
-      S:=PrimeFactors(&*[Numerator(c)*Denominator(c) where c:=LeadingCoefficient(Numerator(a)): a in V]);
+      S:=PrimeFactors(6*&*[Numerator(c)*Denominator(c) where c:=LeadingCoefficient(Numerator(a)): a in V]);
+      arch_modsquares:=func< c | [Sign(c) eq 1 select 0 else 1]>;
     else
-      S:=Support(&*[Numerator(c)*Denominator(c) where c:=LeadingCoefficient(Numerator(a)): a in V]*OK);
+      S:=Support(6*&*[Numerator(c)*Denominator(c) where c:=LeadingCoefficient(Numerator(a)): a in V]*OK);
+      arch_modsquares:=func< c | [s eq 1 select 0 else 1 : s in RealSigns(c)]>;
     end if;
-    Append(~W,[[Valuation(v,p): p in FnFactorBasis]cat [Valuation(LeadingCoefficient(Numerator(v)),p):p in S] cat [Sign(Rationals()!Numerator(c)*Denominator(c)) where c:=LeadingCoefficient(Numerator(v))]:v in V]);
+    selmaps:=[* arch_modsquares *];
+    for p in S do
+       Kc_complete,toKc:=Completion(Kc,p);
+       _,toSel:=pSelmerGroup(2,Kc_complete);
+       Append(~selmaps,func<c | Eltseq(toSel(toKc(c)))>);
+    end for;
+    
+    Append(~W,[
+        [Valuation(v,p): p in FnFactorBasis] cat &cat[s(LeadingCoefficient(Numerator(v))):s in selmaps]:v in V]);
     //Append(~W,[[Valuation(v,p): p in FnFactorBasis]:v in V]);
 end for;
 ```
 
 ```{magma}
 M:=Matrix(GF(2),[&cat[w[i]: w in W]: i in [1..#W[1]]]);
-Kernel(M);
+bs:=Kernel(M);
 ```
 
 ```{magma}
@@ -1099,5 +1123,48 @@ WW*M;
 ```
 
 ```{magma}
-[[-1,2,3,T, T+1, T-1, T+3, T-3, -1,2,3,T, T+1, T-1, T+3, T-3][i]: i in [1..#Eltseq(b)] | b[i] eq 1] where b:=Basis(bs)[3];
+vectoalg:=func<b|<&*[Parent(T)|[-1,2,3,T, T+1, T-1, T+3, T-3, -1,2,3,T, T+1, T-1, T+3, T-3][i]: i in [1..8] | b[i] eq 1],
+  &*[Parent(T)|[-1,2,3,T, T+1, T-1, T+3, T-3, -1,2,3,T, T+1, T-1, T+3, T-3][i]: i in [9..16] | b[i] eq 1]>>;
+```
+
+```{magma}
+imgx0:=[1,0,1,0,1,0,0,1, 1,0,1,0,0,1,1,0]; // 2-torsion
+imgx1:= [0,0,1,1,0,0,0,0, 0,0,0,1,0,1,1,0];  // 2-torsion
+imgB:= [0,0,0,1,0,0,0,0, 0,0,0,1,0,0,0,0];
+imgA:= [0,1,1,1,1,0,0,0,0,1,1,1,0,1,0,0];
+
+imgm1z:=[1,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0];
+img2z:=[0,1,0,0,0,0,0,0, 0,0,0,0,0,0,0,0];
+img3z:=[0,0,1,0,0,0,0,0, 0,0,0,0,0,0,0,0];
+imgzm1:=[0,0,0,0,0,0,0,0, 1,0,0,0,0,0,0,0];
+imgz2:=[0,0,0,0,0,0,0,0, 0,1,0,0,0,0,0,0];
+imgz3:=[0,0,0,0,0,0,0,0, 0,0,1,0,0,0,0,0];
+```
+
+```{magma}
+Matrix(GF(2),[imgA])*M;
+```
+
+```{magma}
+sub<bs|imgA, imgB, imgx0, imgx1>;
+```
+
+```{magma}
+Factor(vectoalg(imgx1)[2]);
+```
+
+```{magma}
+[r[2][6]: r in ResidueList];
+```
+
+```{magma}
+[Factor(r[1][4]*r[2][4]): r in ResidueList];
+```
+
+```{magma}
+ResidueList;
+```
+
+```{magma}
+
 ```
